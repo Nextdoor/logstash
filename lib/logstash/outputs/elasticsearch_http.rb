@@ -73,8 +73,8 @@ class LogStash::Outputs::ElasticSearchHTTP < LogStash::Outputs::Base
         response = @agent.post!("http://#{@host}:#{@port}/#{index}/#{type}",
                                 :body => event.to_json)
       rescue EOFError
-        @logger.warn("EOF while writing request or reading response header " \
-                     "from elasticsearch", :host => @host, :port => @port)
+        @logger.warn("EOF while writing request or reading response header "
+                     "from elasticsearch", :host => @host, :port => @port
         next # try again
       end
 
@@ -85,7 +85,7 @@ class LogStash::Outputs::ElasticSearchHTTP < LogStash::Outputs::Base
         response.read_body { |chunk| body += chunk }
       rescue EOFError
         @logger.warn("EOF while reading response body from elasticsearch",
-                     :host => @host, :port => @port)
+                     :host => @host, :port => @port
         next # try again
       end
 
@@ -125,8 +125,8 @@ class LogStash::Outputs::ElasticSearchHTTP < LogStash::Outputs::Base
       response = @agent.post!("http://#{@host}:#{@port}/_bulk",
                               :body => @queue.join("\n") + "\n")
     rescue EOFError
-      @logger.warn("EOF while writing request or reading response header " \
-                   "from elasticsearch", :host => @host, :port => @port)
+      @logger.warn("EOF while writing request or reading response header "
+                   "from elasticsearch", :host => @host, :port => @port
       return # abort this flush
     end
 
@@ -137,7 +137,7 @@ class LogStash::Outputs::ElasticSearchHTTP < LogStash::Outputs::Base
       response.read_body { |chunk| body += chunk }
     rescue EOFError
       @logger.warn("EOF while reading response body from elasticsearch",
-                   :host => @host, :port => @port)
+                   :host => @host, :port => @port
       return # abort this flush
     end
 
