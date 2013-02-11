@@ -68,13 +68,16 @@ class LogStash::Outputs::ElasticSearchHTTP < LogStash::Outputs::Base
 
   def receive_single(event, index, type)
     success = false
-    while !success
+    try_count = 0
+    while !success and try_count < 3
+      try_count+=1
+
       begin
         response = @agent.post!("http://#{@host}:#{@port}/#{index}/#{type}",
                                 :body => event.to_json)
       rescue EOFError
-        @logger.warn("EOF while writing request or reading response header "
-                     "from elasticsearch", :host => @host, :port => @port
+        @logger.warn("EOF while writing request or reading response header " \
+                     "from elasticsearch", :host => @host, :port => @port)
         next # try again
       end
 
@@ -85,7 +88,7 @@ class LogStash::Outputs::ElasticSearchHTTP < LogStash::Outputs::Base
         response.read_body { |chunk| body += chunk }
       rescue EOFError
         @logger.warn("EOF while reading response body from elasticsearch",
-                     :host => @host, :port => @port
+                     :host => @host, :port => @port)
         next # try again
       end
 
@@ -93,6 +96,7 @@ class LogStash::Outputs::ElasticSearchHTTP < LogStash::Outputs::Base
         @logger.error("Error writing to elasticsearch",
                       :response => response, :response_body => body)
       else
+        try_count = 0
         success = true
       end
     end
@@ -125,8 +129,12 @@ class LogStash::Outputs::ElasticSearchHTTP < LogStash::Outputs::Base
       response = @agent.post!("http://#{@host}:#{@port}/_bulk",
                               :body => @queue.join("\n") + "\n")
     rescue EOFError
-      @logger.warn("EOF while writing request or reading response header "
-                   "from elasticsearch", :host => @host, :port => @port
+      @logger.warn("EOF while writing request or reading response header " \
+                   "from elasticsearch", :host => @host, :port => @port)
+
+      @logger.warn("Clearing the queue of #{@queue.count} items.")
+      print_queue(@queue)
+      @queue.clear
       return # abort this flush
     end
 
@@ -137,7 +145,7 @@ class LogStash::Outputs::ElasticSearchHTTP < LogStash::Outputs::Base
       response.read_body { |chunk| body += chunk }
     rescue EOFError
       @logger.warn("EOF while reading response body from elasticsearch",
-                   :host => @host, :port => @port
+                   :host => @host, :port => @port)
       return # abort this flush
     end
 
@@ -151,6 +159,12 @@ class LogStash::Outputs::ElasticSearchHTTP < LogStash::Outputs::Base
     # Clear the queue on success only.
     @queue.clear
   end # def flush
+
+  def print_queue(queue)
+    queue.each do |item|
+        @logger.error("Dropping queue item to the floor", :item => item)
+    end
+  end #def print_queue
 
   def teardown
     flush while @queue.size > 0
@@ -179,6 +193,8 @@ class LogStash::Outputs::ElasticSearchHTTP < LogStash::Outputs::Base
     begin
       success = false
       while !success
+        try_count+=1
+
         response = @agent.put!("http://#{@host}:#{@port}/_template/#{template_name}",
                                :body => template_config.to_json)
         if response.error?
